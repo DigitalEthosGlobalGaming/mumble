@@ -40,6 +40,12 @@ It isn't a screen recording. `src/video-export.ts` draws each frame to a canvas 
 
 Under each chat person are three dice buttons: **🎲 Person** (new name, outfit and voice), **🎲 Look** (outfit only) and **🎲 Voice** (a random vocal-tract voice, same name and outfit). Person and Voice play one of that person's lines straight away. They are one-offs, held in memory only and marked "not saved" in the picker, so your saved voices never change. Picking a saved voice, or reloading, drops them. They still work in **Export video**.
 
+Click a name tag in the chat to rename that person. A saved voice is renamed for good; a one-off keeps its new name while it lasts. Their look doesn't change when they are renamed.
+
+## Making new clothes and parts
+
+Outfits, hats, hairstyles, props, facial hair and glasses are one file each under `src/character/parts/`. Copy `parts/_template.ts`, edit it, and check it at <http://localhost:5173/preview.html> while `npm run dev` runs. `parts/README.md` explains the options, and why adding a part to the random draw reshuffles existing seeds (the example `hoodie` has `weight: 0` for that reason).
+
 ## How a line becomes sound
 
 This is all in `src/mumble-core.js`.

@@ -80,19 +80,16 @@
   </div>
 
   <section id="chatView" aria-label="Two-person chat">
-    <div class="scene stage">
-      <div class="side left" id="sideL">
-        <div class="bubble"><p class="txt" id="textL" aria-live="polite"></p><span class="more" aria-hidden="true">▼</span></div>
-        <div class="actor" id="actorL"></div>
-        <div class="tagrow"><div class="nametag" id="nameL">Left</div>
-          <div class="dice" role="group" aria-label="Randomise the left person"><button class="btn small reroll" id="personL" title="Random one-off person: new name, outfit and voice (not saved). Plays a line.">🎲 Person</button><button class="btn small reroll" id="rerollL" title="New random outfit and face, same voice">🎲 Look</button><button class="btn small reroll" id="randL" title="Random one-off voice (not saved), same name and outfit. Plays a line.">🎲 Voice</button></div></div>
-      </div>
-      <div class="side right" id="sideR">
-        <div class="bubble"><p class="txt" id="textR" aria-live="polite"></p><span class="more" aria-hidden="true">▼</span></div>
-        <div class="actor" id="actorR"></div>
-        <div class="tagrow"><div class="nametag" id="nameR">Right</div>
-          <div class="dice" role="group" aria-label="Randomise the right person"><button class="btn small reroll" id="personR" title="Random one-off person: new name, outfit and voice (not saved). Plays a line.">🎲 Person</button><button class="btn small reroll" id="rerollR" title="New random outfit and face, same voice">🎲 Look</button><button class="btn small reroll" id="randR" title="Random one-off voice (not saved), same name and outfit. Plays a line.">🎲 Voice</button></div></div>
-      </div>
+    <!-- the scene is one canvas, drawn by src/scene.ts: the same code the exported video uses, so this is what the file will look like -->
+    <div class="scene stage" id="stage">
+      <canvas id="stageCanvas" width="1280" height="720" role="img" aria-label="Two people talking"></canvas>
+      <div class="tag" id="tagL"><div class="nametag" id="nameL">Left</div></div>
+      <div class="tag" id="tagR"><div class="nametag" id="nameR">Right</div></div>
+    </div>
+    <div class="dicerow">
+      <div class="dice" role="group" aria-label="Randomise the left person"><button class="btn small reroll" id="personL" title="Random one-off person: new name, outfit and voice (not saved). Plays a line.">🎲 Person</button><button class="btn small reroll" id="rerollL" title="New random outfit and face, same voice">🎲 Look</button><button class="btn small reroll" id="randL" title="Random one-off voice (not saved), same name and outfit. Plays a line.">🎲 Voice</button></div>
+      <button class="btn small" id="sceneRoll" title="A different random backdrop (the exported video uses the one you see)">🎲 Backdrop</button>
+      <div class="dice" role="group" aria-label="Randomise the right person"><button class="btn small reroll" id="personR" title="Random one-off person: new name, outfit and voice (not saved). Plays a line.">🎲 Person</button><button class="btn small reroll" id="rerollR" title="New random outfit and face, same voice">🎲 Look</button><button class="btn small reroll" id="randR" title="Random one-off voice (not saved), same name and outfit. Plays a line.">🎲 Voice</button></div>
     </div>
     <div class="panel chatctl">
       <div class="pair">

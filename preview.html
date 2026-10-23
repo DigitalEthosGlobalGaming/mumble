@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mumble parts preview</title>
+<link rel="stylesheet" href="/src/styles.css">
+<style>
+  body{padding:16px;max-width:1200px;margin:0 auto}
+  h1{font-size:20px;margin:0 0 4px} h2{font-size:15px;margin:22px 0 8px;text-transform:capitalize}
+  .bar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:10px 0;padding:10px;border:1px solid #ccc;border-radius:8px}
+  .bar label{display:flex;gap:6px;align-items:center;font-size:13px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
+  .cell{text-align:center;font-size:12px}
+  .cell .ch{width:100%;max-width:130px;margin:0 auto;display:block}
+  .cell b{display:block;margin-top:2px}
+  .stage-prev .ch *{stroke:#1a1a1a;stroke-opacity:.38;stroke-width:1;stroke-linejoin:round}
+</style>
+</head>
+<body>
+<h1>Parts preview</h1>
+<p>Every part, one at a time, on the same plain person. Add a file under <code>src/character/parts/</code> and it shows up here when you save.</p>
+<div class="bar">
+  <label>Person seed <input id="seed" value="preview" size="12"></label>
+  <label><button id="newSeed">🎲</button></label>
+  <label>Colour <input id="col" type="color" value="#2c7be5"></label>
+  <label><input id="flip" type="checkbox"> Flip</label>
+  <label>Mouth <input id="open" type="range" min="0" max="1" step="0.25" value="0"></label>
+</div>
+<div class="stage-prev" id="out"></div>
+<script type="module" src="/src/preview.ts"></script>
+</body>
+</html>

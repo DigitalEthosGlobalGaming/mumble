@@ -3,6 +3,7 @@
 import {createCharacter, lookFor, randomSeed} from "./character";
 import {CLAMP, SR, CF, VKEYS, VWORD, calibrate, createSynth, itemsOf, speakerTable} from "./mumble-core";
 import {exportConversation} from "./video-export";
+import {createScene, buildTimeline, hop} from "./scene";
 (() => {
 "use strict";
 
@@ -134,9 +135,12 @@ function makeFace(textEl, moreEl, nameEl, actorEl, rootEl, flip = false){
   return {textEl, moreEl, nameEl, ch, rootEl};
 }
 const mainFace = makeFace($("text"), $("more"), $("nametag"), $("portrait"), null);
+/* The chat stage is one canvas drawn by the same scene code the video export uses; each side's face is the scene's
+   character plus the editable name tag laid over it. */
+const stage = createScene({voices: {L: {name: "Left", color: "#c98b5a"}, R: {name: "Right", color: "#c98b5a"}}, tags: false, canvas: $("stageCanvas")});
 const chatFaces = {
-  L: makeFace($("textL"), $("sideL").querySelector(".more"), $("nameL"), $("actorL"), $("sideL")),
-  R: makeFace($("textR"), $("sideR").querySelector(".more"), $("nameR"), $("actorR"), $("sideR"), true)
+  L: {nameEl: $("nameL"), ch: stage.cast.L.ch},
+  R: {nameEl: $("nameR"), ch: stage.cast.R.ch}
 };
 const textEl = mainFace.textEl, moreEl = mainFace.moreEl;
 let ctx = null, line = null, queueToken = 0;
@@ -741,21 +745,52 @@ function parseScript(txt){
   return out;
 }
 let chatToken = 0;
-async function playChat(){
-  const token = ++chatToken, qt = ++queueToken, lines = parseScript($("script").value);
-  if (!lines.length){ toast("Write a line for someone to say first."); return; }
-  for (const f of Object.values(chatFaces)){ f.textEl.textContent = ""; f.moreEl.classList.remove("on"); }
-  const live = () => token === chatToken && qt === queueToken;
-  for (const {side, text} of lines){
-    if (!live()) return;
-    await speak(text, chatVoice(side), chatFaces[side]);
-    if (!live()) return;
-    await new Promise(r => setTimeout(r, 380));
-  }
+/* Play lines on the stage. Every line is synthesised first (a few seconds for a minute of speech, instant when cached), laid
+   out on a timeline exactly as the export does, then the audio is scheduled and the stage is drawn from the audio clock. */
+let playing = null;
+async function playLines(lines, people){
+  const token = ++chatToken; ++queueToken;
+  if (line) finishLine(true);
+  stopPlayback();
+  const ac = audio();
+  $("chatProgText").textContent = "Getting ready…";
+  let built;
+  try {
+    built = await buildTimeline(lines, (text, side) => getSynth(text, people[side]), {hop, check: () => { if (token !== chatToken) throw new DOMException("stopped", "AbortError"); }});
+  } catch(e){ if (e && e.name === "AbortError") return; throw e; } finally { if (token === chatToken) $("chatProgText").textContent = ""; }
+  if (token !== chatToken) return;
+  const t0 = ac.currentTime + 0.1, out = ac.createGain(); out.connect(ac.destination);
+  const srcs = built.timed.map(tl => {
+    const buf = ac.createBuffer(1, tl.synth.samples.length, SR); buf.copyToChannel(tl.synth.samples, 0);
+    const src = ac.createBufferSource(); src.buffer = buf; src.connect(out); src.start(t0 + tl.offset); return src;
+  });
+  stage.setTimeline(built.timed);
+  stage.canvas.setAttribute("aria-label", lines.map(l => l.text).join(" "));
+  playing = {t0, origin: performance.now() / 1000, out, srcs};
 }
-function stopChat(){ chatToken++; finishLine(true); }
+function stopPlayback(){
+  const p = playing; if (!p) return;
+  playing = null; stage.setTimeline([]);
+  const now = ctx.currentTime; p.out.gain.setValueAtTime(p.out.gain.value, now); p.out.gain.linearRampToValueAtTime(0, now + 0.05);
+  setTimeout(() => { p.srcs.forEach(x => { try { x.stop(); } catch(e){} }); p.out.disconnect(); }, 120);
+}
+function playChat(){
+  const lines = parseScript($("script").value);
+  if (!lines.length){ toast("Write a line for someone to say first."); return; }
+  return playLines(lines, {L: chatVoice("L"), R: chatVoice("R")});
+}
+function stopChat(){ chatToken++; finishLine(true); stopPlayback(); }
+/* the stage redraws all the time: the backdrop and blinking are alive even when nobody is talking */
+let drawing = false;
+(function stageLoop(){
+  requestAnimationFrame(stageLoop);
+  if ($("chatView").hidden || drawing) return;
+  const now = performance.now() / 1000;
+  drawing = true;
+  stage.render(playing ? playing.origin + Math.max(0, ctx.currentTime - playing.t0) : now, playing ? playing.origin : 0).finally(() => { drawing = false; });
+})();
 function setMode(m){
-  chatToken++; queueToken++; finishLine(true);
+  chatToken++; queueToken++; finishLine(true); stopPlayback();
   $("singleView").hidden = m !== "single"; $("chatView").hidden = m !== "chat";
   for (const [id, mm] of [["modeSingle", "single"], ["modeChat", "chat"]]){ $(id).classList.toggle("on", m === mm); $(id).setAttribute("aria-pressed", m === mm); }
   $("studioBox").open = m === "single"; // the voice editor is the point of single mode; in chat it stays tucked away
@@ -781,10 +816,37 @@ for (const side of ["L", "R"]) for (const [id, wholePerson] of [["rand", false],
   fillChatOptions(side, v.id); showVoice(v, chatFaces[side]);
   chatToken++; queueToken++;
   const mine = parseScript($("script").value).filter(l => l.side === side);
-  speak(mine.length ? pickOf(mine).text : "Oh, hello there! How are you today?", v, chatFaces[side]);
+  playLines([{side, text: mine.length ? pickOf(mine).text : "Oh, hello there! How are you today?"}], {L: chatVoice("L"), R: chatVoice("R")});
 };
+/* click a name tag to rename that person (saved voices are renamed for good; a one-off keeps the new name while it lasts).
+   Their look is pinned first, since it falls back to the name when no seed is set. */
+for (const side of ["L", "R"]){
+  const tag = $("name" + side);
+  tag.title = "Click to rename"; tag.tabIndex = 0;
+  const edit = () => {
+    if (tag.isContentEditable) return;
+    const v = chatVoice(side), old = v.name;
+    tag.contentEditable = "plaintext-only"; tag.classList.add("editing"); tag.focus();
+    getSelection().selectAllChildren(tag);
+    const done = ok => {
+      tag.removeEventListener("blur", onBlur); tag.removeEventListener("keydown", onKey);
+      tag.contentEditable = "false"; tag.classList.remove("editing");
+      const name = tag.textContent.replace(/\s+/g, " ").trim().slice(0, 40);
+      if (!ok || !name || name === old){ tag.textContent = old; return; }
+      v.look = v.look || old; v.name = name;
+      if (state.voices.includes(v)){ save(); renderList(); }
+      refreshChat();
+    };
+    const onBlur = () => done(true);
+    const onKey = e => { if (e.key === "Enter"){ e.preventDefault(); done(true); } else if (e.key === "Escape"){ e.preventDefault(); done(false); } };
+    tag.addEventListener("blur", onBlur); tag.addEventListener("keydown", onKey);
+  };
+  tag.addEventListener("click", edit);
+  tag.addEventListener("keydown", e => { if (e.key === "Enter" && !tag.isContentEditable){ e.preventDefault(); edit(); } });
+}
 $("chatPlay").onclick = playChat;
 $("chatStop").onclick = stopChat;
+$("sceneRoll").onclick = () => stage.reroll();
 
 /* export the conversation (animation + speech) as a video file */
 let exporting = null;
@@ -800,7 +862,7 @@ $("chatExport").onclick = async () => {
   progress(0, "Starting");
   try {
     const r = await exportConversation({
-      lines, voices: people, signal: ctl.signal, onProgress: progress,
+      lines, voices: people, signal: ctl.signal, onProgress: progress, backdrop: stage.backdrop, seed: stage.seed,
       synthFor: (text, side) => getSynth(text, people[side])
     });
     const base = fileBase(people.L.name + " and " + people.R.name) || "conversation";
