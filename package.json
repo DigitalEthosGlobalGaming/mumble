@@ -1,0 +1,25 @@
+{
+  "name": "mumble-voices",
+  "version": "2.0.0",
+  "description": "Synthesised mumble speech for game dialogue: Klatt formant and waveguide vocal-tract engines, no audio files.",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "typecheck": "tsc",
+    "build": "tsc && vite build && vite build --mode single",
+    "build:single": "tsc && vite build --mode single",
+    "preview": "vite preview",
+    "render": "node tools/render-wav.js",
+    "check": "node tools/check-formants.js formant && node tools/check-formants.js tract && node tools/check-levels.js formant && node tools/check-levels.js tract && node tools/scan-clicks.js",
+    "fit-tract": "node tools/fit-tract.js"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5",
+    "vite-plugin-singlefile": "^2.3.4"
+  },
+  "dependencies": {
+    "mediabunny": "^1.62.1"
+  }
+}

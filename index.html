@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="color-scheme" content="light">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mumble — character voice workbench</title>
+
+</head>
+<body>
+<main class="wrap">
+  <header class="top">
+    <h1>Mumble, eh?</h1>
+    <p>Write a conversation and watch it talk in made-up speech. Every sound is synthesised from the text as it types out.</p>
+  </header>
+
+  <div class="modebar" role="group" aria-label="Mode">
+    <button class="mode on" id="modeChat" aria-pressed="true">Two-person chat</button>
+    <button class="mode" id="modeSingle" aria-pressed="false">One voice</button>
+  </div>
+
+  <div id="singleView" hidden>
+  <div class="window scene" id="win" tabindex="0" role="button" aria-label="Dialogue box. Click or press Enter to show the whole line.">
+    <div class="nametag" id="nametag">Guard</div>
+    <div class="portrait" id="portrait" aria-hidden="true"></div>
+    <div class="speech"><div class="bubble">
+      <p id="text" aria-live="polite"></p>
+      <span class="more" id="more" aria-hidden="true">▼</span>
+    </div></div>
+    <div class="meter" aria-hidden="true">
+      <span>Vowel <b id="vow">—</b></span><span id="hz">—</span><span class="perf" id="perf"></span>
+    </div>
+  </div>
+
+  <div class="below">
+    <div class="compose">
+      <label for="line" class="hint">What should they say?</label>
+      <textarea id="line" rows="2">Welcome back, traveller. Sister Agnes has been asking about you... Did you bring the fish?</textarea>
+      <div class="actions">
+        <button class="btn primary" id="speak">Speak</button>
+        <button class="btn" id="skip">Show whole line</button>
+        <button class="btn" id="every">Hear every voice</button>
+        <button class="btn" id="wav">Save line as audio</button>
+        <button class="btn" id="stepbtn" aria-expanded="false" aria-controls="stepper">Step through sounds</button>
+      </div>
+      <div class="examples" id="examples"></div>
+      <p class="hint">Commas and full stops pause, <code>?</code> lifts the last word, <code>!</code> starts high, <code>...</code> trails off and CAPITALS shout. Add <code>{purr}</code>, <code>{snort}</code>, <code>{sigh}</code>, <code>{hmm}</code> or <code>{laugh}</code> anywhere, and wrap words in <code>{whisper}</code>…<code>{/whisper}</code> to whisper them. Ctrl+Enter speaks.</p>
+      <p class="toast" id="toast" role="status"></p>
+    </div>
+    <section class="panel map" aria-label="Vowel map">
+      <h2>Vowel map <small>F2 across, F1 down</small></h2>
+      <canvas id="chart" aria-label="Where this voice's vowels sit, with the live sound moving across it"></canvas>
+    </section>
+  </div>
+
+  <section class="panel stepper" id="stepper" hidden aria-label="Step through sounds" tabindex="-1">
+    <div class="st-head">
+      <h2>Step through sounds</h2>
+      <p>Each separate sound in the line, one at a time. Use the arrow keys or click the waveform. Red marks are sounds the checker thinks may crackle or hiss.</p>
+    </div>
+    <canvas id="wave" aria-label="Waveform of the line. Click a part to play that sound."></canvas>
+    <div class="actions">
+      <button class="btn small" id="stPrev" aria-label="Previous sound">◀ Previous</button>
+      <button class="btn small primary" id="stPlay">Play sound</button>
+      <button class="btn small" id="stNext" aria-label="Next sound">Next ▶</button>
+      <button class="btn small" id="stFrom">Play from here</button>
+      <label class="check"><input type="checkbox" id="stSlow"> Half speed (also an octave lower)</label>
+    </div>
+    <p class="st-info" id="stInfo" aria-live="polite"></p>
+    <div class="chips" id="stChips"></div>
+    <div class="st-tools">
+      <div class="mutes"><span>Switch off to compare:</span>
+        <label class="check"><input type="checkbox" id="muteCreak"> Creak</label>
+        <label class="check"><input type="checkbox" id="muteCons"> Consonant hiss</label>
+        <label class="check"><input type="checkbox" id="muteBreath"> Breath</label>
+      </div>
+      <div class="row"><button class="btn small" id="stReport">Copy report of this sound</button><button class="btn small" id="stClose">Close</button></div>
+    </div>
+  </section>
+  </div>
+
+  <section id="chatView" aria-label="Two-person chat">
+    <div class="scene stage">
+      <div class="side left" id="sideL">
+        <div class="bubble"><p class="txt" id="textL" aria-live="polite"></p><span class="more" aria-hidden="true">▼</span></div>
+        <div class="actor" id="actorL"></div>
+        <div class="tagrow"><div class="nametag" id="nameL">Left</div>
+          <div class="dice" role="group" aria-label="Randomise the left person"><button class="btn small reroll" id="personL" title="Random one-off person: new name, outfit and voice (not saved). Plays a line.">🎲 Person</button><button class="btn small reroll" id="rerollL" title="New random outfit and face, same voice">🎲 Look</button><button class="btn small reroll" id="randL" title="Random one-off voice (not saved), same name and outfit. Plays a line.">🎲 Voice</button></div></div>
+      </div>
+      <div class="side right" id="sideR">
+        <div class="bubble"><p class="txt" id="textR" aria-live="polite"></p><span class="more" aria-hidden="true">▼</span></div>
+        <div class="actor" id="actorR"></div>
+        <div class="tagrow"><div class="nametag" id="nameR">Right</div>
+          <div class="dice" role="group" aria-label="Randomise the right person"><button class="btn small reroll" id="personR" title="Random one-off person: new name, outfit and voice (not saved). Plays a line.">🎲 Person</button><button class="btn small reroll" id="rerollR" title="New random outfit and face, same voice">🎲 Look</button><button class="btn small reroll" id="randR" title="Random one-off voice (not saved), same name and outfit. Plays a line.">🎲 Voice</button></div></div>
+      </div>
+    </div>
+    <div class="panel chatctl">
+      <div class="pair">
+        <label>Left person <select id="vsL"></select></label>
+        <button class="btn small" id="swap" title="Swap the two people">⇄ Swap</button>
+        <label>Right person <select id="vsR"></select></label>
+      </div>
+      <label for="script" class="hint">What are they saying?</label>
+      <textarea id="script" rows="7" spellcheck="false"></textarea>
+      <div class="actions">
+        <button class="btn primary" id="chatPlay">▶ Play conversation</button>
+        <button class="btn" id="chatStop">Stop</button>
+        <span class="grow"></span>
+        <button class="btn" id="chatExport" title="Render the whole conversation, with its speech, to a video file">Export video</button>
+      </div>
+      <div class="exportbar" id="exportBar" hidden>
+        <progress id="chatProg" max="1" value="0"></progress>
+        <span id="chatProgText" role="status"></span>
+      </div>
+      <p class="toast" id="chatToast" role="status"></p>
+      <details class="tips">
+        <summary>Writing tips</summary>
+        <p class="hint">Start a line with <code>L:</code> for the left person or <code>R:</code> for the right one. A line with no tag goes to whoever did not speak last. <code>?</code> lifts the last word, <code>!</code> starts high, <code>...</code> trails off and CAPITALS shout. Add <code>{purr}</code>, <code>{snort}</code>, <code>{sigh}</code>, <code>{hmm}</code> or <code>{laugh}</code> anywhere, and wrap words in <code>{whisper}</code>…<code>{/whisper}</code> to whisper them. Ctrl+Enter plays.</p>
+      </details>
+    </div>
+  </section>
+
+  <details class="studiobox" id="studioBox">
+  <summary>Voices and settings</summary>
+  <section class="studio">
+    <aside class="panel" aria-label="Voices">
+      <h2>Voices</h2>
+      <ul id="list"></ul>
+      <div class="row">
+        <button class="btn small" id="new">New voice</button>
+        <button class="btn small" id="share">Import or export</button>
+      </div>
+      <button class="btn quiet small" id="reset">Restore default voices</button>
+      <p class="status" id="status">Voices are saved in this browser.</p>
+    </aside>
+
+    <div class="panel" aria-label="Voice settings">
+      <div class="ed-head">
+        <input id="vname" maxlength="40" autocomplete="off" aria-label="Voice name">
+        <input type="color" id="vcolor" aria-label="Jacket colour">
+        <button class="btn small" id="reroll" title="Generate a new look for this voice">🎲 New look</button>
+        <button class="btn small" id="test">Test voice</button>
+        <button class="btn small danger" id="del">Delete</button>
+      </div>
+      <div class="modes">
+        <fieldset class="seg" id="engineSeg"><legend>Engine</legend><div class="opts"></div><small id="engineHint"></small></fieldset>
+        <fieldset class="seg" id="styleSeg"><legend>Speech style</legend><div class="opts"></div><small id="styleHint"></small></fieldset>
+      </div>
+      <div class="groups" id="controls"></div>
+      <div class="ed-foot">
+        <label class="check"><input type="checkbox" id="autoplay" checked> Play a sample when I let go of a slider</label>
+        <button class="btn small" id="copyvoice">Copy voice as one line</button>
+      </div>
+    </div>
+  </section>
+  </details>
+
+  <dialog id="dlg">
+    <h3>Import or export voices</h3>
+    <p>Copy this text to keep your voices or share them. To import, paste voices exported from here (one voice or many) and choose Add voices.</p>
+    <textarea id="json" spellcheck="false"></textarea>
+    <p class="dlg-msg" id="dlgmsg" role="status"></p>
+    <div class="row" style="justify-content:flex-end">
+      <button class="btn small" id="copy">Copy</button>
+      <button class="btn small" id="import">Add voices</button>
+      <button class="btn small primary" id="close">Done</button>
+    </div>
+  </dialog>
+</main>
+
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>
